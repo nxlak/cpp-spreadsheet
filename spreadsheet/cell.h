@@ -12,7 +12,7 @@ class Sheet;
 
 class Cell : public CellInterface {
 public:
-    Cell(Sheet& sheet);
+    explicit Cell(Sheet& sheet);
     ~Cell();
 
     void Set(std::string text);
@@ -28,12 +28,18 @@ private:
     class Impl;
     std::unique_ptr<Impl> impl_;
     Sheet& sheet_;
-    std::unordered_set<Cell*> dependets_; // Ячейки, в которых используются значения из данной ячейки
+    // Ячейки, которые ссылаются на данную ячейку
+    std::unordered_set<Cell*> dependets_;
 
-    void HasCircularDependency(Impl& impl);
+    void ThrowIfCircularDependency(Impl& impl);
+
     void FillDependets();
     void ClearCache();
-    
+
+    // Вспомогательный метод для проверки циклических зависимостей
+    bool CheckCircularDependency(const Cell* current, const Cell* target,
+                                 std::unordered_set<const Cell*>& visited) const;
+
     class Impl {
     public:
         virtual Value GetValue() const = 0;
@@ -76,5 +82,4 @@ private:
         const SheetInterface& sheet_;
         mutable std::optional<FormulaInterface::Value> cache_;
     };
-
 };
