@@ -1,94 +1,98 @@
-# Электронная таблица
+# Spreadsheet
 
-**Spreadsheet** – это упрощенный аналог существующих решений электронных таблиц, таких как *Microsoft Excel* или *Google Sheets*. Ячейки таблицы могут содержать текст или формулы. Формулы в свою очередь могут содержать индексы ячеек, как и в упомянутых продуктах. Спроектированный проект таблицы обладает высокой эффективностью по памяти (в случае «разреженности» таблицы, когда минимальная печатная область велика по сравнению с количеством непустых ячеек), не вызывает утечек памяти при удалении ячеек или таблицы целиком, а также предоставляет доступ к своим ячейкам по индексу за `О(1)`.
+**Spreadsheet** is a simplified analogue of existing spreadsheet solutions such as *Microsoft Excel* or *Google Sheets*. Table cells can contain either plain text or formulas. Formulas can include cell indexes, similar to the aforementioned products. This spreadsheet project is memory-efficient (especially for sparse tables where the printable area is large relative to the number of non-empty cells), avoids memory leaks when cells or the entire sheet are deleted, and provides `O(1)` access to cells by index.
 
-## Описание
+## Overview
 
-### Ячейки и индексы
+### Cells and Indexes
 
-Таблица хранит в себе ячейки `Cell`. Для пользователя ячейка таблицы задаётся своим индексом, то есть строкой вида `А1`, `С14` или `RD2`. Причём ячейка с индексом `А1` — это ячейка в левом верхнем углу листа.
-Количество строк и столбцов в таблице не превышает **16384**. То есть предельная позиция ячейки равна `(16383, 16383)` с индексом `XFD16384`. Если позиция ячейки выходит за эти границы, то ячейка невалидна по определению. Структура ***позиции*** определена в файле `common.h` и содержит поля `col` и `row` – индексы строк и столбцов, используемые для доступа к ячейкам листа.
+The table stores `Cell` objects. For users, a cell is accessed by its index in the format `A1`, `C14`, or `RD2`, where `A1` represents the top-left corner of the sheet.
 
-### Минимальная печатная область
+The number of rows and columns in the spreadsheet does not exceed **16384**, meaning the maximum valid cell index is `(16383, 16383)` corresponding to `XFD16384`. If a cell position exceeds these boundaries, it is considered invalid. The ***position*** structure is defined in the `common.h` file and contains `col` and `row` fields — the column and row indices used for cell access.
 
-Чтобы напечатать таблицу, нужно знать размер минимальной печатной области. Это минимальная прямоугольная область с вершиной в ячейке `A1`, содержащая все непустые ячейки.
-Структура `Size` определена в файле `common.h`. Она содержит количество строк и столбцов в минимальной печатной области.
+### Minimal Printable Area
 
-### Методы, обращающиеся к ячейке по индексу
+To print the spreadsheet, the size of the minimal printable area must be known. This is the smallest rectangular area starting from `A1` that includes all non-empty cells.
 
-* `SetCell(Position, std::string)` – задаёт содержимое ячейки по индексу `Position`. Если ячейка пуста – она создаётся. Нужно задать ячейке текст методом `Cell::Set(std::string)`;
-* `Cell\* GetCell(Position pos)` – константный и неконстантный геттеры, которые возвращают указатель на ячейку, расположенную по индексу `pos`. Если ячейка пуста, возвращают `nullptr`;
-* `void ClearCell(Position pos)` – очищает ячейку по индексу. Последующий вызов `GetCell()` для этой ячейки вернёт `nullptr`. При этом может измениться размер минимальной печатной области.
+The `Size` structure is defined in `common.h` and contains the number of rows and columns in the minimal printable area.
 
-### Методы, применимые к таблице целиком
+### Methods Accessing Cells by Index
 
-* `Size GetPrintableSize()` – определяет размер минимальной печатной области. Специально для него в файле `common.h` определена структура `Size`. Она содержит количество строк и столбцов в минимальной печатной области;
-* `void PrintText(std::ostream&)` – выводит текстовые представления ячеек:
-	* для текстовых ячеек – это текст, который пользователь задал в методе `Set()`, то есть не очищенный от ведущих апострофов `'`;
-	* для формульных ячеек – это формула, очищенная от лишних скобок, как `Formula::GetExpression()`, но с ведущим знаком `=`.
-* `void PrintValues(std::ostream&)` – выводит значения ячеек — строки, числа или `FormulaError`, — как это определено в `Cells::GetValue()`.
+* `SetCell(Position, std::string)` – sets the content of a cell at the given `Position`. If the cell is empty, it is created. The text is assigned via `Cell::Set(std::string)`;
+* `Cell* GetCell(Position pos)` – const and non-const getters that return a pointer to the cell at `pos`. If the cell is empty, returns `nullptr`;
+* `void ClearCell(Position pos)` – clears the content of the cell at the given index. Subsequent `GetCell()` calls will return `nullptr`. This may also change the size of the printable area.
 
-### Вычисление значений в ячейках
+### Methods for the Whole Sheet
 
-Допустим, в ячейке `А3` находится формула `=1+2*7`. Её легко вычислить: это `15`. В ячейке `A2` находится текст `3`. Формально ячейка не формульная. Но её текст можно интерпретировать как число. Поэтому её значение – `3`. В ячейке `С2` записана формула `=A3/A2`. Чтобы её вычислить, надо разделить значение ячейки `А3` на значение ячейки `А2`. Результат – 15/3 = **5**.
-Если формула содержит индекс пустой ячейки, то значение пустой ячейки — 0.
+* `Size GetPrintableSize()` – determines the size of the minimal printable area. The `Size` structure in `common.h` defines this;
+* `void PrintText(std::ostream&)` – prints the textual representation of cells:
+  * For text cells – prints the raw text set by `Set()`, including leading apostrophes `'`;
+  * For formula cells – prints the formula with simplified brackets using `Formula::GetExpression()` and a leading `=`.
+* `void PrintValues(std::ostream&)` – prints the evaluated cell values — strings, numbers, or `FormulaError` — as defined in `Cells::GetValue()`.
 
-## Обработка исключений
+### Evaluating Cell Values
 
-### Ошибки вычисления
+For example, cell `A3` contains a formula `=1+2*7`, which evaluates to `15`. Cell `A2` contains the plain text `"3"`, which is not a formula but can be interpreted as a number, so its value is `3`. Cell `C2` contains the formula `=A3/A2`, which divides the value of `A3` by `A2`: 15 / 3 = **5**.
 
-В вычислениях могут возникнуть ошибки. Например, ошибка «деление на 0». Если делитель равен 0, значение ячейки — ошибка `FormulaError` типа **#DIV/0!**.
+If a formula references an empty cell, the empty cell’s value is considered to be `0`.
 
-Если ячейку, чей индекс входит в формулу, нельзя проинтерпретировать как число, возникает ошибка `FormulaError` — нет значения **#VALUE!**.
+## Exception Handling
 
-Формула может содержать ссылку на ячейку, которая выходит за границы возможного размера таблицы, например `С2 (=А1234567+ZZZZ1)`. Такая формула может быть создана, но не может быть вычислена, поэтому её вычисление вернёт ошибку **#REF!**.
+### Evaluation Errors
 
-Ошибки распространяются вверх по зависимостям. Если формула зависит от нескольких ячеек, каждая из которых содержит ошибку вычисления, результирующая ошибка может соответствовать любой из них.
+Evaluation may result in errors, e.g., division by zero. If a divisor is zero, the result is a `FormulaError` of type **#DIV/0!**.
 
-### Некорректная формула
+If a referenced cell cannot be interpreted as a number, a `FormulaError` **#VALUE!** is returned.
 
-Если в ячейку методом `Sheet::SetCell()` записать синтаксически некорректную формулу, например `=A1+*`, то программа генерирует исключение `FormulaException`, и значение ячейки не меняется. Формула считается синтаксически некорректной, если она не удовлетворяет общепринятой грамматике.
+If a formula references a cell that is out of bounds, like `=A1234567+ZZZZ1`, it can be created but not evaluated, resulting in an error **#REF!**.
 
-### Некорректная позиция
+Errors propagate through dependencies. If a formula depends on multiple cells, each with errors, the result may be any of those errors.
 
-Программно возможно создать экземпляр класса `Position` c некорректной позицией, например `(-1, -1)`. Если пользователь передаёт её в методы, программа генерирует исключение `InvalidPositionException`.
+### Invalid Formula
 
-### Циклические зависимости
+If a syntactically invalid formula (e.g. `=A1+*`) is passed to `Sheet::SetCell()`, a `FormulaException` is thrown, and the cell value remains unchanged. A formula is invalid if it doesn't follow standard grammar rules.
 
-Таблица остаётся корректной при возникновении циклических зависимостей. Если ячейки циклически зависят друг от друга, то невозможно вычислить значения ячеек. Поэтому пользователь не может задать ячейку в методе `Sheet::SetCell()` с формулой, которая вводит циклические зависимости. Программа генерирует исключение `CircularDependencyException`, и значение ячейки не меняется.
+### Invalid Position
 
-## Системные требования
-1. С++ 17
-2. GCC(MinGW-w64) 11+
+A `Position` instance with invalid coordinates (e.g. `(-1, -1)`) can be created programmatically. If such a position is used in a method, it throws an `InvalidPositionException`.
+
+### Circular Dependencies
+
+Circular dependencies are not allowed. If cells form a cycle, their values cannot be computed. Attempting to set a formula that introduces a cycle throws a `CircularDependencyException`, and the cell value is not changed.
+
+## System Requirements
+
+1. C++ 17
+2. GCC (MinGW-w64) 11+
 3. JDK – Java Development Kit https://www.oracle.com/java/technologies/downloads/
-4. Библиотека ANTLR4 https://www.antlr.org/
+4. ANTLR4 library https://www.antlr.org/
 5. CMake version 3.8+ https://cmake.org/
 
-## Порядок установки
+## Installation Steps
 
-1. Установить CMake и JDK.
-2. Установить ANTLR. Инструкцию по установке ANTLR можно найти на сайте https://www.antlr.org/.
-3. Создать каталоги Debug и Release, если они ещё не созданы:
+1. Install CMake and JDK.
+2. Install ANTLR. Installation instructions can be found at https://www.antlr.org/.
+3. Create `Debug` and `Release` directories if they do not exist:
 
 ```
 mkdir ../Debug
 mkdir ../Release
 ```
 
-4. Перейти в каталог `spreadsheet` и выполнить команду для `Debug`- и/или `Release`-конфигурации:
+4. Navigate to the `spreadsheet` directory and run the following commands for `Debug` and/or `Release` builds:
 
 ```
 cmake -E chdir ../Debug/ cmake -G "Unix Makefiles" ../spreadsheet/ -DCMAKE_BUILD_TYPE:STRING=Debug
 cmake -E chdir ../Release/ cmake -G "Unix Makefiles" ../spreadsheet/ -DCMAKE_BUILD_TYPE:STRING=Release 
 ```
 
-5. Перейти в каталог `Debug` или `Release` и собрать проект:
+5. Navigate to the `Debug` or `Release` directory and build the project:
 
 ```
 cmake --build .
 ```
 
-6. Запустить программу:
+6. Run the application:
 
 ```
 ./spreadsheet
